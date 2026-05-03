@@ -1,4 +1,5 @@
 import math
+import os
 
 file=open("in.txt","r")
 label=[]
@@ -31,8 +32,9 @@ def print_intermediate_table():
 
     for i in range(len(label)):
         print(f"{loc_ctr[i]:<10}{label[i]:<12}{inst[i]:<15}{ref[i]}")
+one_output = r"C:\\Users\\youse\\SIC-XE-Assembler\\pass1out"
 def write_intermediate_file():
-    with open("intermediate.txt", "w") as f:
+    with open(os.path.join(one_output, "intermediate.txt"), "w") as f:
         f.write(f"{'Address':<10}{'Label':<12}{'Instruction':<15}{'Reference'}\n")
         f.write(f"{'-'*10}{'-'*12}{'-'*15}{'-'*10}\n")
 
@@ -41,7 +43,7 @@ def write_intermediate_file():
 
 
 def write_symbol_table_file():
-    with open("symbTable.txt", "w") as f:
+    with open(os.path.join(one_output, "symbTable.txt"), "w") as f:
         f.write(f"{'Symbol':<15}{'Address'}\n")
         f.write(f"{'-'*15}{'-'*10}\n")
 
@@ -50,7 +52,7 @@ def write_symbol_table_file():
 
 
 def write_pool_table_file():
-    with open("poolTable.txt", "w") as f:
+    with open(os.path.join(one_output, "poolTable.txt"), "w") as f:
         f.write(f"{'Pool Variable':<20}{'Address'}\n")
         f.write(f"{'-'*20}{'-'*10}\n")
 
