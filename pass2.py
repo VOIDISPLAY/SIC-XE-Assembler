@@ -143,3 +143,25 @@ def GenerateOpcode(loc , inst , ref ,symtbl , pooltbl):
 
         #---------Instruction formats 1,2,3,4-----------#
         else:
+            baseop = op.replace("+" , "" )
+            opcode , fmt = OPCODES.get(baseop,("??" , 3))
+            if op.startswith("+"):
+                fmt = 4
+
+            #-------------- format 1 ----------------#
+            if fmt == 1:
+                obj = opcode
+
+            #-------------- format 2 -----------------#
+            elif fmt == 2:
+                regs = operand.split(",")
+                r1 = registers.get(regs[0] , "0")
+                r2 = registers.get(regs[1] , "0") if len(regs)> 1 else "0"
+                obj = opcode + r1 + r2
+
+            #-------------- format 3/4 -----------------#
+            else:
+                n , iflag = 1,1
+                x , b, p, e = 0,0,0,0
+
+                
