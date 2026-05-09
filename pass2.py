@@ -31,13 +31,6 @@ OPCODES = {
 
 REGISTERS = {"A": 0, "X": 1, "L": 2, "B": 3, "S": 4, "T": 5, "F": 6}
 
-# boundaries for parsing intermediate file columns
-COL_LOC  = (0,  18)
-COL_SYM  = (18, 27)
-COL_INST = (27, 41)
-COL_REF  = (41, None)
-
-
 # Parse intermediate file
 def read_intermediate(path="pass1out/intermediate.txt"):
     rows = []
@@ -47,15 +40,22 @@ def read_intermediate(path="pass1out/intermediate.txt"):
     for raw in lines:
         if not raw.strip():
             continue
-        line = raw.expandtabs()
-        line = line + " " * max(0, 60 - len(line))
 
-        loc    = line[COL_LOC[0]:  COL_LOC[1]].strip()
-        symbol = line[COL_SYM[0]:  COL_SYM[1]].strip()
-        inst   = line[COL_INST[0]: COL_INST[1]].strip().upper()
-        ref    = line[COL_REF[0]:             ].strip()
+        parts = re.split(r"\s{2,}", raw.expandtabs().rstrip())
+        if not parts:
+            continue
 
-        if not inst:
+        if len(parts) >= 4:
+            loc, symbol, inst = parts[0], parts[1], parts[2]
+            ref = "  ".join(parts[3:])
+        elif len(parts) == 3:
+            loc, inst, ref = parts
+            symbol = ""
+        elif len(parts) == 2:
+            loc, inst = parts
+            symbol = ""
+            ref = ""
+        else:
             continue
 
         rows.append({"loc": loc, "symbol": symbol, "inst": inst,
@@ -273,10 +273,10 @@ def write_pass2(rows, objcodes, path="out_pass2.txt"):
 def write_htme(rows, objcodes, mod_records, symtbl, path="HTME.txt"):
     MAX_BYTES = 30
 
-    prog_name = "      "
+    prog_name = "XXXXXX"
     for row in rows:
         if row["symbol"]:
-            prog_name = row["symbol"][:6].ljust(6)
+            prog_name = row["symbol"][:6].ljust(6, 'X')
             break
 
     prog_start = 0

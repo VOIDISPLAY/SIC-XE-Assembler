@@ -152,6 +152,11 @@ def pass1():
                     loc_ctr.append(hex(int(loc_ctr[j],16) + len(ref[j]) - 3)[2:].zfill(4))
                 else:
                     loc_ctr.append(hex(int(loc_ctr[j],16)+math.ceil((len(ref[j])-3)/2))[2:].zfill(4))
+            elif i.upper()=="use".upper:
+                if ref[i].upper() not in {"DEFAULT", "DEFAULTB", "CDATA", "CBLKS", "POOL"}:
+                    with open(os.path.join(one_output, "error.txt"), "w") as f:
+                        f.write("ERROR: UNIDENTIFIED BLOCK USAGE")
+                        os._exit(0)
             elif i.upper() == "CLEAR":                                          
                 loc_ctr.append(hex(int(loc_ctr[j],16)+2)[2:].zfill(4))
             elif i.upper() == "BASE":
