@@ -1,7 +1,7 @@
 Address   Label       Instruction    Reference
 -----------------------------------------------
-0         COPY        START          0
-0         FIRST       CLEAR          X
+0000      COPY        START          0
+0000      FIRST       CLEAR          X
 0002                  CLEAR          A
 0004                  USE            DEFAULTB
 0000                  LDA            #0

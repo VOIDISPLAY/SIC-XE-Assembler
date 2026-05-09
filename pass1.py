@@ -123,13 +123,13 @@ def pass1():
         blcktbl_end["DEFAULT"] = "0000"
         
         j = 0
-        loc_ctr.append(ref[0])
+        loc_ctr.append(hex(int(ref[0], 16))[2:].zfill(4))
         for i in inst:
             blck_name.append(current_block)
             if ref[j].startswith("&") and ref[j] not in pooltbl:
                 pooltbl[ref[j]] = loc_ctr[j]
             if i.upper() == "START":
-                loc_ctr.append(ref[0])
+                loc_ctr.append(hex(int(ref[0], 16))[2:].zfill(4))
             elif i.upper() == "USE":
                 blcktbl_end[current_block] = loc_ctr[j]
                 target = ref[j] if ref[j] != "" else "DEFAULT"
