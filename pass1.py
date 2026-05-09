@@ -158,7 +158,11 @@ def pass1():
             else:
                 size = math.ceil((len(var) - 4) / 2)
             current_pool_addr += size
-        blcktbl["CDATA"] = hex(current_pool_addr)[2:].zfill(4)               # save last block's end address
+        blcktbl["CDATA"] = hex(current_pool_addr)[2:].zfill(4)
+        cumulative = current_pool_addr
+        for block in block_order[cdata_index:]:
+            blcktbl[block] = hex(cumulative)[2:].zfill(4)
+            cumulative += int(blcktbl_end[block], 16)               
         print("block_order:", block_order)
         print("blcktbl_end:", blcktbl_end)
         print("pooltbl:", pooltbl)
