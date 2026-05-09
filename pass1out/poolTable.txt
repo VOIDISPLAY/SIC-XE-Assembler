@@ -1,4 +1,4 @@
-Pool Variable       Address
-------------------------------
-&C'EOF'             0023
-&X'0F'              0026
+Pool Variable  Address   Length    Object Code
+---------------------------------------------
+&C'EOF'        0023      3         454F46
+&X'0F'         0026      1         0F

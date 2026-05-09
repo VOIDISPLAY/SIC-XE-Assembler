@@ -15,12 +15,23 @@ def isformfour(bombo:str):
     return bombo[0]=="+"
 def ispool(bookie:str):
     return bookie[0].startswith("&")
+def get_pool_length_and_objcode(var):
+    if var.upper().startswith("&C'"):
+        content = var[3:-1]                                    
+        length = len(content)
+        objcode = ''.join(format(ord(c), '02X') for c in content)
+    else:
+        content = var[3:-1]                                    
+        length = math.ceil(len(content) / 2)
+        objcode = content.upper()
+    return length, objcode
 def print_pool_table():
     print("\nPool Table")
-    print("PoolVar\t\tAddress")
-    print("-------\t\t-------")
+    print(f"{'Pool Variable':<15}{'Address':<10}{'Length':<10}{'Object Code'}")
+    print(f"{'-'*15}{'-'*10}{'-'*10}{'-'*10}")
     for k, v in pooltbl.items():
-        print(f"{k:<12}\t{v}")
+        length, objcode = get_pool_length_and_objcode(k)
+        print(f"{k:<15}{v:<10}{length:<10}{objcode}")
 def print_symbol_table():
     print("\nSymbol Table")
     print(f"{'Symbol':<15}{'Address'}")
@@ -56,23 +67,32 @@ def write_symbol_table_file():
 
 def write_pool_table_file():
     with open(os.path.join(one_output, "poolTable.txt"), "w") as f:
-        f.write(f"{'Pool Variable':<20}{'Address'}\n")
-        f.write(f"{'-'*20}{'-'*10}\n")
-
+        f.write(f"{'Pool Variable':<15}{'Address':<10}{'Length':<10}{'Object Code'}\n")
+        f.write(f"{'-'*15}{'-'*10}{'-'*10}{'-'*10}\n")
         for k, v in pooltbl.items():
-            f.write(f"{k:<20}{v}\n")
+            length, objcode = get_pool_length_and_objcode(k)
+            f.write(f"{k:<15}{v:<10}{length:<10}{objcode}\n")
 def print_block_table():
     print("\nBlock Table")
-    print(f"{'Block':<15}{'Address'}")
-    print(f"{'-'*15}{'-'*10}")
-    for k, v in blcktbl.items():
-        print(f"{k:<15}{v}")
+    print(f"{'Block':<15}{'Number':<15}{'Address':<10}{'Size'}")
+    print(f"{'-'*15}{'-'*15}{'-'*10}{'-'*10}")
+    for idx, (k, v) in enumerate(blcktbl.items()):
+        size = blcktbl_end[k] if k in blcktbl_end else "0000"
+        print(f"{k:<15}{idx:<15}{v:<10}{size}")
+    # total program length
+    last_block = list(blcktbl.keys())[-1]
+    total = int(blcktbl[last_block], 16) + int(blcktbl_end[last_block], 16)
+    print(f"\nTotal program length: {hex(total)[2:].upper()}")
 def write_block_table_file():
     with open(os.path.join(one_output, "blckTable.txt"), "w") as f:
-        f.write(f"{'Block':<15}{'Address'}\n")
-        f.write(f"{'-'*15}{'-'*10}\n")
-        for k, v in blcktbl.items():
-            f.write(f"{k:<15}{v}\n")
+        f.write(f"{'Block':<15}{'Number':<15}{'Address':<10}{'Size'}\n")
+        f.write(f"{'-'*15}{'-'*15}{'-'*10}{'-'*10}\n")
+        for idx, (k, v) in enumerate(blcktbl.items()):
+            size = blcktbl_end[k] if k in blcktbl_end else "0000"
+            f.write(f"{k:<15}{idx:<15}{v:<10}{size}\n")
+        last_block = list(blcktbl.keys())[-1]
+        total = int(blcktbl[last_block], 16) + int(blcktbl_end[last_block], 16)
+        f.write(f"\nTotal program length: {hex(total)[2:].upper()}\n")
 def readf():
     for i in file:
         l=i.split()
@@ -159,6 +179,17 @@ def pass1():
                 size = math.ceil((len(var) - 4) / 2)
             current_pool_addr += size
         blcktbl["CDATA"] = hex(current_pool_addr)[2:].zfill(4)
+        # add POOL block to blcktbl
+        pool_size = current_pool_addr - pool_start
+        blcktbl_end["POOL"] = hex(pool_size)[2:].zfill(4)
+        # insert POOL before CDATA in blcktbl
+        new_blcktbl = {}
+        for k, v in blcktbl.items():
+            if k == "CDATA":
+                new_blcktbl["POOL"] = hex(pool_start)[2:].zfill(4)
+            new_blcktbl[k] = v
+        blcktbl.clear()
+        blcktbl.update(new_blcktbl)        
         cumulative = current_pool_addr
         for block in block_order[cdata_index:]:
             blcktbl[block] = hex(cumulative)[2:].zfill(4)
@@ -170,7 +201,7 @@ def pass1():
         print_intermediate_table()
         # display()
         for x in range(len(label)):
-            if label[x] != "" and label[x] != " ":
+            if label[x] != "" and label[x] != "" and inst[x].upper() != "START":
                 block_of_label = blck_name[x]
                 block_start = int(blcktbl[block_of_label], 16)
                 relative_addr = int(loc_ctr[x], 16) if loc_ctr[x] not in ('0', '') else 0
