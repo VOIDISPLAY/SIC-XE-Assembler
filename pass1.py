@@ -1,7 +1,7 @@
 import math
 import os
 
-file=open("in.txt","r")
+file=open("in.txt","r", encoding="utf-8-sig")
 label=[]
 inst=[]
 ref=[]
