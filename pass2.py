@@ -74,7 +74,6 @@ def read_symtab(path="pass1out/symbTable.txt"):
             symtbl[parts[0]] = parts[1]
     return symtbl
 
-
 # Read poolTable.txt
 def read_pooltab(path="pass1out/poolTable.txt"):
     pooltbl = {}
@@ -91,15 +90,22 @@ def read_pooltab(path="pass1out/poolTable.txt"):
 
 # Literal resolver
 def resolve_literal(key: str, pooltbl: dict) -> int:
+    key = key.strip()
     if key in pooltbl:
         return int(pooltbl[key], 16)
-    m = re.match(r"C'(.+)'", key, re.IGNORECASE)
+    if not key.startswith("&") and ("&" + key) in pooltbl:
+        return int(pooltbl["&" + key], 16)
+    if key.startswith("&") and key[1:] in pooltbl:
+        return int(pooltbl[key[1:]], 16)
+
+    plain = key[1:] if key.startswith("&") else key
+    m = re.match(r"C'(.+)'", plain, re.IGNORECASE)
     if m:
         val = 0
         for ch in m.group(1):
             val = (val << 8) | ord(ch)
         return val
-    m = re.match(r"X'([0-9A-Fa-f]+)'", key, re.IGNORECASE)
+    m = re.match(r"X'([0-9A-Fa-f]+)'", plain, re.IGNORECASE)
     if m:
         return int(m.group(1), 16)
     raise ValueError(f"Unknown literal: {key!r}")
@@ -109,7 +115,7 @@ def resolve_operand(operand: str, symtbl: dict, pooltbl: dict) -> int:
     if not operand:
         return 0
     if operand.startswith("&"):
-        return resolve_literal(operand[1:], pooltbl)
+        return resolve_literal(operand, pooltbl)
     if re.fullmatch(r"[0-9]+", operand):
         return int(operand)
     if operand in symtbl:
@@ -128,11 +134,70 @@ def next_loc(rows, current_idx: int) -> int:
     return (int(loc, 16) + 3) if loc else 0
 
 
+def is_hex_loc(loc: str) -> bool:
+    return bool(loc) and re.fullmatch(r"[0-9A-Fa-f]+", loc) is not None
+
+
+def row_blocks(rows):
+    blocks = []
+    current_block = "DEFAULT"
+    for row in rows:
+        blocks.append(current_block)
+        if row["inst"] == "USE":
+            current_block = row["ref"].strip() or "DEFAULT"
+    return blocks
+
+
+def build_absolute_locs(rows, symtbl):
+    blocks = row_blocks(rows)
+
+    block_base = {}
+    for row, block in zip(rows, blocks):
+        if not is_hex_loc(row["loc"]):
+            continue
+        sym = row["symbol"]
+        if sym and sym in symtbl and is_hex_loc(symtbl[sym]):
+            local = int(row["loc"], 16)
+            absolute = int(symtbl[sym], 16)
+            block_base[block] = absolute - local
+
+    if "DEFAULT" not in block_base:
+        block_base["DEFAULT"] = 0
+
+    for idx, row in enumerate(rows):
+        if row["inst"] == "USE":
+            next_block = row["ref"].strip() or "DEFAULT"
+            if next_block in block_base:
+                continue
+            cur_block = blocks[idx]
+            if cur_block in block_base and is_hex_loc(row["loc"]):
+                block_base[next_block] = block_base[cur_block] + int(row["loc"], 16)
+
+    abs_locs = []
+    for row, block in zip(rows, blocks):
+        if not is_hex_loc(row["loc"]):
+            abs_locs.append(None)
+            continue
+        base = block_base.get(block, 0)
+        abs_locs.append(base + int(row["loc"], 16))
+
+    return abs_locs
+
+
+def next_abs_loc(abs_locs, current_idx: int) -> int:
+    for j in range(current_idx + 1, len(abs_locs)):
+        if abs_locs[j] is not None:
+            return abs_locs[j]
+    cur = abs_locs[current_idx]
+    return (cur + 3) if cur is not None else 0
+
+
 # Object code
 def object_code(rows, symtbl, pooltbl):
     objcodes    = []
     mod_records = []
     base_val    = None
+    abs_locs    = build_absolute_locs(rows, symtbl)
 
     for i, row in enumerate(rows):
         loc     = row["loc"]
@@ -203,6 +268,10 @@ def object_code(rows, symtbl, pooltbl):
             continue
 
         # Format 3 / 4
+        if mnemonic == "RSUB":
+            objcodes.append("4F0000")
+            continue
+
         n = i_flag = 1
         x = b = p = e = 0
 
@@ -226,14 +295,15 @@ def object_code(rows, symtbl, pooltbl):
             e     = 1
             flags = (x << 3) | (b << 2) | (p << 1) | e
             obj   = f"{op_byte:02X}{flags:X}{addr:05X}"
-            if loc:
-                mod_addr = int(loc, 16) + 1
+            cur_abs = abs_locs[i]
+            if cur_abs is not None:
+                mod_addr = cur_abs + 1
                 mod_records.append(f"{mod_addr:06X} 05")
         else:
             if is_immediate_numeric:
                 disp_field = addr & 0xFFF
             else:
-                nloc       = next_loc(rows, i)
+                nloc       = next_abs_loc(abs_locs, i)
                 disp       = addr - nloc
 
                 if -2048 <= disp <= 2047:
@@ -254,7 +324,7 @@ def object_code(rows, symtbl, pooltbl):
 
 
 # Write out_pass2.txt
-def write_pass2(rows, objcodes, path="out_pass2.txt"):
+def write_pass2(rows, objcodes, path="pass2out/out_pass2.txt"):
     hdr = (f"{'Location counter':<18}{'Symbol':<9}"
            f"{'Instructions':<14}{'Reference':<14}Obj. code")
     sep = ("─" * 16 + "  " + "─" * 7 + "  " + "─" * 12 + "  " +
@@ -270,8 +340,9 @@ def write_pass2(rows, objcodes, path="out_pass2.txt"):
             )
 
 # Write HTME.txt
-def write_htme(rows, objcodes, mod_records, symtbl, path="HTME.txt"):
+def write_htme(rows, objcodes, mod_records, symtbl, pooltbl, path="pass2out/HTME.txt"):
     MAX_BYTES = 30
+    abs_locs = build_absolute_locs(rows, symtbl)
 
     prog_name = "XXXXXX"
     for row in rows:
@@ -280,15 +351,15 @@ def write_htme(rows, objcodes, mod_records, symtbl, path="HTME.txt"):
             break
 
     prog_start = 0
-    for row in rows:
-        if row["loc"]:
-            prog_start = int(row["loc"], 16)
+    for a in abs_locs:
+        if a is not None:
+            prog_start = a
             break
 
     max_end = prog_start
-    for row, obj in zip(rows, objcodes):
-        if row["loc"]:
-            a = int(row["loc"], 16)
+    for i, (row, obj) in enumerate(zip(rows, objcodes)):
+        a = abs_locs[i]
+        if a is not None:
 
             if obj:
                 s = len(obj) // 2
@@ -312,27 +383,76 @@ def write_htme(rows, objcodes, mod_records, symtbl, path="HTME.txt"):
                         max_end = end_addr
                 except ValueError:
                     pass
+
+    for i, row in enumerate(rows):
+        if row["inst"] == "END" and abs_locs[i] is not None and abs_locs[i] > max_end:
+            max_end = abs_locs[i]
     prog_len = max_end - prog_start
 
-    pairs = sorted(
-        [(int(r["loc"], 16), obj.upper())
-         for r, obj in zip(rows, objcodes)
-         if r["loc"] and obj],
-        key=lambda t: t[0]
-    )
+    blocks = row_blocks(rows)
 
     text_records = []
-    if pairs:
-        run_start = pairs[0][0]
-        run_objs  = []
+    run_start = None
+    run_objs = []
+    run_bytes = 0
+    run_block = None
+
+    for i, (row, obj) in enumerate(zip(rows, objcodes)):
+        addr = abs_locs[i]
+        if addr is None or not obj:
+            continue
+
+        block = blocks[i]
+        obj = obj.upper()
+        obj_bytes = len(obj) // 2
+
+        should_split = (
+            run_start is None
+            or block != run_block
+            or addr != run_start + run_bytes
+            or run_bytes + obj_bytes > MAX_BYTES
+        )
+
+        if should_split:
+            if run_objs:
+                text_records.append((run_start, list(run_objs)))
+            run_start = addr
+            run_objs = []
+            run_bytes = 0
+            run_block = block
+
+        run_objs.append(obj)
+        run_bytes += obj_bytes
+
+    if run_objs:
+        text_records.append((run_start, list(run_objs)))
+
+    literal_pairs = []
+    for lit, addr in pooltbl.items():
+        if not is_hex_loc(addr):
+            continue
+        lit_obj = ""
+        m_c = re.match(r"&C'(.+)'", lit, re.IGNORECASE)
+        m_x = re.match(r"&X'([0-9A-Fa-f]+)'", lit, re.IGNORECASE)
+        if m_c:
+            lit_obj = "".join(f"{ord(c):02X}" for c in m_c.group(1))
+        elif m_x:
+            lit_obj = m_x.group(1).upper()
+        if lit_obj:
+            literal_pairs.append((int(addr, 16), lit_obj))
+
+    literal_pairs.sort(key=lambda t: t[0])
+    if literal_pairs:
+        run_start = literal_pairs[0][0]
+        run_objs = []
         run_bytes = 0
-        for addr, obj in pairs:
+        for addr, obj in literal_pairs:
             obj_bytes = len(obj) // 2
             if addr != run_start + run_bytes or run_bytes + obj_bytes > MAX_BYTES:
                 if run_objs:
                     text_records.append((run_start, list(run_objs)))
                 run_start = addr
-                run_objs  = []
+                run_objs = []
                 run_bytes = 0
             run_objs.append(obj)
             run_bytes += obj_bytes
@@ -352,7 +472,7 @@ def write_htme(rows, objcodes, mod_records, symtbl, path="HTME.txt"):
         for t_start, t_objs in text_records:
             combined   = "".join(t_objs)
             byte_count = len(combined) // 2
-            f.write(f"T^{t_start:06X}^{byte_count:02X}^{'^ '.join(t_objs)}\n")
+            f.write(f"T^{t_start:06X}^{byte_count:02X}^{'^'.join(t_objs)}\n")
         for mr in mod_records:
             addr_str, half_bytes = mr.split()
             f.write(f"M^{addr_str.upper()}^{half_bytes}\n")
@@ -370,7 +490,7 @@ def main():
 
     objcodes, mod_records = object_code(rows, symtbl, pooltbl)
     write_pass2(rows, objcodes)
-    write_htme(rows, objcodes, mod_records, symtbl)
+    write_htme(rows, objcodes, mod_records, symtbl, pooltbl)
 
 
 if __name__ == "__main__":
