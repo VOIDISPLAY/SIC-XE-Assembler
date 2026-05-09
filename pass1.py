@@ -169,9 +169,13 @@ def pass1():
         print_intermediate_table()        
         print_intermediate_table()
         # display()
-        for x in range (len(label)):
-            if label[x]!=" ":
-                symtbl[label[x]]=loc_ctr[x]
+        for x in range(len(label)):
+            if label[x] != "" and label[x] != " ":
+                block_of_label = blck_name[x]
+                block_start = int(blcktbl[block_of_label], 16)
+                relative_addr = int(loc_ctr[x], 16) if loc_ctr[x] not in ('0', '') else 0
+                real_addr = block_start + relative_addr
+                symtbl[label[x]] = hex(real_addr)[2:].zfill(4)
         for z in symtbl.keys():
             print(z,"\t",symtbl[z])
 for k in pooltbl.keys():
