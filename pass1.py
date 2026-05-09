@@ -93,9 +93,11 @@ def write_block_table_file():
         last_block = list(blcktbl.keys())[-1]
         total = int(blcktbl[last_block], 16) + int(blcktbl_end[last_block], 16)
         f.write(f"\nTotal program length: {hex(total)[2:].upper()}\n")
-def readf():
+def readf(filename="in.txt"):
     for i in file:
         l=i.split()
+        if not l:
+            continue
         if len(l)==3:
             label.append(l[0])
             inst.append(l[1])
@@ -214,17 +216,18 @@ def pass1():
                 symtbl[label[x]] = hex(real_addr)[2:].zfill(4)
         for z in symtbl.keys():
             print(z,"\t",symtbl[z])
-for k in pooltbl.keys():
-    print(k,"\t",pooltbl[k])
-       
-readf()
-pass1()
-print_pool_table()
-print_symbol_table()
-write_intermediate_file()
-write_symbol_table_file()
-write_pool_table_file()
-write_block_table_file()
+
+if __name__ == "__main__":
+    for k in pooltbl.keys():
+        print(k,"\t",pooltbl[k])
+    readf()
+    pass1()
+    print_pool_table()
+    print_symbol_table()
+    write_intermediate_file()
+    write_symbol_table_file()
+    write_pool_table_file()
+    write_block_table_file()
 #print  (symtbl)
 # print (loc_ctr)
 # print (pooltbl)

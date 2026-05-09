@@ -334,9 +334,10 @@ def write_pass2(rows, objcodes, path="pass2out/out_pass2.txt"):
         f.write(hdr + "\n")
         f.write(sep + "\n")
         for row, obj in zip(rows, objcodes):
+            obj_text = obj if obj else "No Object code"
             f.write(
                 f"{row['loc']:<18}{row['symbol']:<9}"
-                f"{row['inst']:<14}{row['ref']:<14}{obj}\n"
+                f"{row['inst']:<14}{row['ref']:<14}{obj_text}\n"
             )
 
 # Write HTME.txt
@@ -480,9 +481,9 @@ def write_htme(rows, objcodes, mod_records, symtbl, pooltbl, path="pass2out/HTME
 
 
 def main():
-    inter_path = sys.argv[1] if len(sys.argv) > 1 else "pass1out/intermediate.txt"
-    sym_path   = sys.argv[2] if len(sys.argv) > 2 else "pass1out/symbTable.txt"
-    pool_path  = sys.argv[3] if len(sys.argv) > 3 else "pass1out/poolTable.txt"
+    inter_path = "pass1out/intermediate.txt"
+    sym_path   = "pass1out/symbTable.txt"
+    pool_path  = "pass1out/poolTable.txt"
 
     rows    = read_intermediate(inter_path)
     symtbl  = read_symtab(sym_path)
