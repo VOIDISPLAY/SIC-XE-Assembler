@@ -2,23 +2,23 @@ Address   Label       Instruction    Reference
 -----------------------------------------------
 0         ﻿COPY     START          0
 0         FIRST       CLEAR          X
-0003                  CLEAR          A
-0006                  USE            DEFAULTB
-0009                  LDA            #0
-000c                  LDB            #BASEVAL
-000f                  BASE           BASEVAL
-0012                  LDA            ALPHA
-0015                  ADD            &C'EOF'
-0018                  STA            BETA
-001b                  LDA            @GAMMA
-001e                  +LDX           ALPHA
-0022                  ADD            &X'0F'
-0025                  STCH           GAMMA,X
-0028                  RSUB           
-002b                  USE            CDATA
-002e      ALPHA       WORD           5
-0031      BETA        RESW           1
-0034      BASEVAL     WORD           4096
-0037                  USE            CBLKS
-003a      GAMMA       RESB           5376
-153a                  END            COPY
+0002                  CLEAR          A
+0004                  USE            DEFAULTB
+0000                  LDA            #0
+0003                  LDB            #BASEVAL
+0006                  BASE           BASEVAL
+0006                  LDA            ALPHA
+0009                  ADD            &C'EOF'
+000c                  STA            BETA
+000f                  LDA            @GAMMA
+0012                  +LDX           ALPHA
+0016                  ADD            &X'0F'
+0019                  STCH           GAMMA,X
+001c                  RSUB           
+001f                  USE            CDATA
+0000      ALPHA       WORD           5
+0003      BETA        RESW           1
+0006      BASEVAL     WORD           4096
+0009                  USE            CBLKS
+0000      GAMMA       RESB           5376
+1500                  END            COPY

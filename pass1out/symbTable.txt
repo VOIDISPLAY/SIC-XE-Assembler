@@ -2,8 +2,8 @@ Symbol         Address
 -------------------------
 ﻿COPY        0
 FIRST          0
-               153a
-ALPHA          002e
-BETA           0031
-BASEVAL        0034
-GAMMA          003a
+               1500
+ALPHA          0000
+BETA           0003
+BASEVAL        0006
+GAMMA          0000
